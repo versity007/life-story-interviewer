@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Life Story Interviewer</title>
+<style>
+  :root{
+    --bg:#faf7f2; --panel:#ffffff; --ink:#2b2620; --muted:#8a8073;
+    --accent:#9a5b3c; --accent-soft:#f3e4da; --line:#e8e0d5;
+    --user-bubble:#efe7dc; --ai-bubble:#ffffff; --ok:#5c7a52;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:Georgia,'Times New Roman',serif; background:var(--bg); color:var(--ink); height:100vh; display:flex; flex-direction:column;}
+  button{font-family:inherit; cursor:pointer;}
+  input,select,textarea{font-family:inherit; font-size:15px;}
+
+  header{display:flex; align-items:center; gap:12px; padding:12px 18px; background:var(--panel); border-bottom:1px solid var(--line);}
+  header h1{font-size:18px; font-weight:normal; letter-spacing:.3px;}
+  header .sub{font-size:12px; color:var(--muted); font-family:-apple-system,Helvetica,sans-serif;}
+  header .spacer{flex:1;}
+  .hbtn{background:none; border:1px solid var(--line); border-radius:20px; padding:6px 14px; font-size:13px; color:var(--ink); font-family:-apple-system,Helvetica,sans-serif;}
+  .hbtn:hover{border-color:var(--accent); color:var(--accent);}
+  #timer{font-size:13px; color:var(--muted); font-family:-apple-system,Helvetica,sans-serif;}
+
+  #main{flex:1; display:flex; min-height:0;}
+  #sidebar{width:280px; border-right:1px solid var(--line); background:var(--panel); padding:18px; overflow-y:auto; font-family:-apple-system,Helvetica,sans-serif;}
+  #sidebar h2{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin:18px 0 8px;}
+  #sidebar h2:first-child{margin-top:0;}
+  .chapter{display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13.5px;}
+  .dot{width:9px; height:9px; border-radius:50%; background:#d8d0c4; flex:none;}
+  .dot.active{background:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  .dot.done{background:var(--ok);}
+  .chapter.active{font-weight:600;}
+  #subjectMeta{font-size:13px; color:var(--muted); line-height:1.5;}
+  .threadItem{font-size:12.5px; color:var(--muted); padding:3px 0 3px 10px; border-left:2px solid var(--line); margin:4px 0;}
+  #sidebarToggle{display:none;}
+
+  #chatWrap{flex:1; display:flex; flex-direction:column; min-width:0;}
+  #chat{flex:1; overflow-y:auto; padding:24px 20px 12px;}
+  .msg{max-width:640px; margin:0 auto 18px; display:flex; flex-direction:column;}
+  .msg .who{font-size:11px; font-family:-apple-system,Helvetica,sans-serif; color:var(--muted); margin-bottom:4px; letter-spacing:.5px; text-transform:uppercase;}
+  .msg .bubble{padding:13px 17px; border-radius:14px; font-size:16.5px; line-height:1.55;}
+  .msg.ai .bubble{background:var(--ai-bubble); border:1px solid var(--line); border-top-left-radius:4px;}
+  .msg.user{align-items:flex-end;}
+  .msg.user .bubble{background:var(--user-bubble); border-top-right-radius:4px;}
+  .msg.system .bubble{background:transparent; border:none; color:var(--muted); font-size:13.5px; font-style:italic; text-align:center; font-family:-apple-system,Helvetica,sans-serif;}
+  .thinking{font-style:italic; color:var(--muted); font-size:14px; font-family:-apple-system,Helvetica,sans-serif;}
+
+  #inputBar{border-top:1px solid var(--line); background:var(--panel); padding:12px 20px 16px;}
+  #inputInner{max-width:640px; margin:0 auto; display:flex; gap:8px; align-items:flex-end;}
+  #input{flex:1; border:1px solid var(--line); border-radius:22px; padding:11px 18px; resize:none; outline:none; background:var(--bg); font-size:15.5px; line-height:1.4; max-height:120px;}
+  #input:focus{border-color:var(--accent);}
+  .iconbtn{width:44px; height:44px; border-radius:50%; border:1px solid var(--line); background:var(--panel); font-size:18px; flex:none; display:flex; align-items:center; justify-content:center;}
+  .iconbtn:hover{border-color:var(--accent);}
+  #micBtn.recording{background:var(--accent); color:#fff; border-color:var(--accent); animation:pulse 1.4s infinite;}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(154,91,60,.4);}70%{box-shadow:0 0 0 10px rgba(154,91,60,0);}100%{box-shadow:0 0 0 0 rgba(154,91,60,0);}}
+  #sendBtn{background:var(--accent); color:#fff; border-color:var(--accent);}
+  #voiceHint{max-width:640px; margin:6px auto 0; font-size:11.5px; color:var(--muted); font-family:-apple-system,Helvetica,sans-serif; min-height:14px;}
+
+  .overlay{position:fixed; inset:0; background:rgba(43,38,32,.45); display:flex; align-items:center; justify-content:center; padding:20px; z-index:10;}
+  .card{background:var(--panel); border-radius:16px; padding:28px; width:100%; max-width:460px; max-height:90vh; overflow-y:auto;}
+  .card h2{font-size:22px; font-weight:normal; margin-bottom:6px;}
+  .card p.note{font-size:13px; color:var(--muted); font-family:-apple-system,Helvetica,sans-serif; line-height:1.5; margin-bottom:16px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:12px; font-family:-apple-system,Helvetica,sans-serif; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.6px;}
+  .field input,.field select{width:100%; border:1px solid var(--line); border-radius:9px; padding:9px 12px; background:var(--bg); outline:none;}
+  .field input:focus,.field select:focus{border-color:var(--accent);}
+  .card .primary{width:100%; background:var(--accent); color:#fff; border:none; border-radius:10px; padding:12px; font-size:15px; margin-top:6px;}
+  .card .secondary{width:100%; background:none; border:none; color:var(--muted); font-size:13px; padding:10px; font-family:-apple-system,Helvetica,sans-serif;}
+  .rowflex{display:flex; gap:10px;} .rowflex .field{flex:1;}
+  .checkrow{display:flex; align-items:center; gap:8px; font-family:-apple-system,Helvetica,sans-serif; font-size:14px; margin-bottom:10px;}
+
+  #summaryCard{display:none; max-width:640px; margin:0 auto 18px; background:var(--panel); border:1px solid var(--accent-soft); border-left:4px solid var(--accent); border-radius:10px; padding:18px; font-family:-apple-system,Helvetica,sans-serif;}
+  #summaryCard h3{font-family:Georgia,serif; font-size:17px; margin-bottom:10px;}
+  #summaryCard .sec{font-size:13.5px; line-height:1.6; margin-bottom:12px; white-space:pre-wrap;}
+  #summaryCard .lbl{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--accent); margin-bottom:4px;}
+
+  #demoBanner{display:none; background:#fdf3e0; border-bottom:1px solid #ecd9a8; color:#8a6d2f; font-size:12.5px; font-family:-apple-system,Helvetica,sans-serif; text-align:center; padding:6px;}
+
+  @media (max-width:760px){
+    #sidebar{position:fixed; left:0; top:0; bottom:0; z-index:20; transform:translateX(-100%); transition:transform .2s; box-shadow:2px 0 12px rgba(0,0,0,.12); background:var(--panel);}
+    #sidebar.open{transform:translateX(0);}
+    #sidebarToggle{display:inline-block;}
+    header h1{font-size:15px;}
+    .msg .bubble{font-size:15.5px;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="hbtn" id="sidebarToggle">&#9776;</button>
+  <div>
+    <h1>Life Story Interviewer</h1>
+    <div class="sub" id="headerSub">Prototype</div>
+  </div>
+  <div class="spacer"></div>
+  <span id="timer"></span>
+  <button class="hbtn" id="exportBtn">Export</button>
+  <button class="hbtn" id="endBtn">End session</button>
+  <button class="hbtn" id="settingsBtn">Settings</button>
+</header>
+
+<div id="demoBanner">DEMO MODE - canned exchange so you can see the flow. Add an API key in Settings for live interviews.</div>
+
+<div id="main">
+  <aside id="sidebar">
+    <h2>Subject</h2>
+    <div id="subjectMeta">-</div>
+    <h2>Chapters</h2>
+    <div id="chapterList"></div>
+    <h2>Open threads</h2>
+    <div id="threadList"><div class="threadItem">None yet</div></div>
+  </aside>
+
+  <div id="chatWrap">
+    <div id="chat"></div>
+    <div id="summaryCard"></div>
+    <div id="inputBar">
+      <div id="inputInner">
+        <button class="iconbtn" id="micBtn" title="Speak">&#127908;</button>
+        <textarea id="input" rows="1" placeholder="Answer out loud, or type here..."></textarea>
+        <button class="iconbtn" id="sendBtn" title="Send">&#8593;</button>
+      </div>
+      <div id="voiceHint"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="setupOverlay">
+  <div class="card">
+    <h2>Welcome.</h2>
+    <p class="note">This is the first working prototype of the interviewer. It runs a real adaptive interview session: it listens, follows the energy, keeps the timeline, and remembers between sessions. Everything stays in this browser; your API key never leaves it.</p>
+    <div class="field">
+      <label>Who is telling their story?</label>
+      <input id="setupName" placeholder="e.g. Dad, or Neeraj">
+    </div>
+    <div class="rowflex">
+      <div class="field">
+        <label>Subject is</label>
+        <select id="setupType">
+          <option value="older">A parent / older subject</option>
+          <option value="midcareer">Me / mid-career subject</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Start chapter</label>
+        <select id="setupChapter"></select>
+      </div>
+    </div>
+    <div class="field">
+      <label>OpenAI API key (stored only in this browser)</label>
+      <input id="setupKey" type="password" placeholder="sk-... (leave empty to try demo mode)">
+    </div>
+    <button class="primary" id="startBtn">Begin the interview</button>
+    <button class="secondary" id="demoBtn">No key yet - show me a demo session</button>
+  </div>
+</div>
+
+<div class="overlay" id="settingsOverlay" style="display:none">
+  <div class="card">
+    <h2>Settings</h2>
+    <p class="note">Key is stored in this browser's local storage only and is sent directly from your browser to the model provider. Nothing else sees it.</p>
+    <div class="field">
+      <label>Provider</label>
+      <select id="setProvider">
+        <option value="openai">OpenAI</option>
+        <option value="anthropic">Anthropic (Claude)</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>API key</label>
+      <input id="setKey" type="password" placeholder="sk-...">
+    </div>
+    <div class="rowflex">
+      <div class="field">
+        <label>Interviewer model</label>
+        <input id="setModel">
+      </div>
+      <div class="field">
+        <label>Facilitator model</label>
+        <input id="setFacModel">
+      </div>
+    </div>
+    <div class="checkrow"><input type="checkbox" id="setVoice" style="width:auto"> <label for="setVoice" style="margin:0">Voice mode (speak answers, hear questions)</label></div>
+    <button class="primary" id="saveSettingsBtn">Save</button>
+    <button class="secondary" id="closeSettingsBtn">Close</button>
+    <button class="secondary" id="resetBtn" style="color:#a33">Erase all local data and start over</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* Interviewer core: distilled from "The Interviewer: Ten Masters, One Method" (mega prompt) + FIA pattern */
+
+const CHAPTERS = [
+  {id:'childhood',   name:'Childhood and family'},
+  {id:'education',   name:'Education'},
+  {id:'earlycareer', name:'Early career'},
+  {id:'ventures',    name:'Ventures and work chapters'},
+  {id:'inflection',  name:'Inflection points'},
+  {id:'relationships',name:'Relationships'},
+  {id:'lessons',     name:'Lessons'},
+  {id:'legacy',      name:'Legacy'}
+];
+
+const QUESTION_BANK = {
+  childhood:["What was the house like?","What street did you grow up on?","Describe the kitchen. What did it smell like?","What did your father do for work?","What did your mother do?","What were they like as people, separately?","What did your family eat on a normal weeknight?","What did Sundays look like?","What was the money situation? Did you know it as a kid?","What is the earliest sound you remember?","Who were you closest to in the family?","What did you get in trouble for?","What is your first memory?","[closer] What did your parents never tell you that you found out later?"],
+  education:["What schools did you go to?","What were you good at?","What were you bad at?","Who is the teacher you remember most?","Who were your friends?","Walk me through a normal school day, morning to night.","Were you ever in real trouble at school?","What did you want to be at 10? At 15? At 20?","When did you first know what you were good at?","What did your parents expect of you?","[closer] What did school teach you that had nothing to do with school?"],
+  earlycareer:["What was your first job?","What did the first paycheck buy? What did it feel like to hold it?","What was your first boss like?","What was your first real failure at work?","What did you think your life would be at that point?","Who taught you the most in those years?","When did you first feel like an adult?","[closer] What would the person you were then think of who you are now?"],
+  ventures:["How did it start? Whose idea was it?","Who was there at the start?","What did the first office look like? The first desk, the first day?","What was the worst week?","What was the best day?","What almost ended it?","What did it cost you?","How did the thing actually work? What did you personally do every day?","Who did you hire first? Who did you have to let go?","How did it end, and whose decision was that?","[closer] Which chapter would you do over, and what would you change first?"],
+  inflection:["What are the moments that divided your life into before and after?","When did you move, and why?","What did you pack first? What did you leave behind?","When did you meet your partner?","Where exactly were you standing? What happened in the first five minutes?","Tell me about the births. The deaths.","When did everything almost fall apart?","What got you through?","Was there a betrayal?","What is the hardest decision you ever made?","[closer] Which of these moments would you relive if you could? Which would you skip?"],
+  relationships:["Who shaped you most?","Tell me about your mentors.","Tell me about your rivals.","What did your best friend see in you that you did not see in yourself?","How are you as a partner? As a parent?","Describe a normal dinner at your house when the kids were small.","What did you learn from your children?","Who did you lose touch with that you still think about?","Who did you never get to thank?","[closer] Who knows you best, and what would they say is the truest thing about you?"],
+  lessons:["What do you believe now that you did not believe at 25?","What did you get wrong for a long time?","What would you tell your 25-year-old self?","When exactly did that belief change? What happened that day?","What habit made the biggest difference?","What do most people get wrong about success?","What did money teach you?","What did failure teach you that success never could?","What do you know now about people?","[closer] What is the truest sentence you can say about your own life?"],
+  legacy:["What do you want to leave behind?","Who do you want to remember you?","What is unfinished?","What are you proudest of?","If your grandchildren read one page of this story, which page should it be?","What do you want your children to know that you never said out loud?","What would you do with ten more healthy years?","What was it all for?","[closer] How do you want to be remembered, in one sentence?"]
+};
+
+const UNIVERSAL_FOLLOWUPS = ["Say more about that.","What happened next?","What did that feel like?","Who else was there?","Which year was that?","What did it cost?","Give me one example.","What were you afraid of?","What did you tell people at the time?","What do you remember that you have never told anyone?"];
+
+const INTERVIEWER_CORE = `You are a composite of the ten greatest interviewers who ever lived, fused into one biographer: Isaacson's chronological spine and patience with silence. Gross's preparation and follow-up. Walters's exhaustive question bank and nerve. Terkel's conviction that an ordinary life told well is extraordinary. Oprah's empathy. Stern's pacing and willingness to interrupt. Tippett's generous listening. Frost's polite, relentless circling back. King's short questions and zero agenda. Ferriss's hunger for how things actually worked.
+
+Your job in every session is to listen your way into one or two stories the subject has never told out loud, and to leave with the specifics that make those stories readable.
+
+CORE RULES
+1. Prepare like Gross and Walters. Review everything already gathered: prior summaries, open threads, names, dates. Use them for callbacks.
+2. Ask short, simple questions (King). Maximum two sentences. "What was the house like?" Never stack questions. The question is a door; the answer is the room.
+3. One question at a time (Isaacson). Ask, then wait. Do not rescue a pause with a new topic. Gentle nudges only: "Say more about that." "What happened next?" "What did that feel like?"
+4. Listen like Tippett. Track names, dates, places, feelings, contradictions, throwaway details. The next great question is almost always inside the answer you just got.
+5. Follow the energy, keep the spine (Isaacson and Stern). The life runs on a timeline and you always know where you are on it. Within a chapter, follow the subject's energy. If an answer drifts or circles, gently cut in: "Let me stop you there, because I want to go back to what you said about..."
+6. Concrete over abstract (Terkel and Ferriss). Ask for scenes, objects, routines, prices, quoted words. "Tell me about one afternoon that summer."
+7. Empathy before probing (Winfrey). React like a human before you react like an interviewer. When the subject says something hard, acknowledge it before the next question. Give them space.
+8. No agenda, no judgment (King and Terkel). Never correct, debate, or moralize. Whatever the subject says is material.
+9. Ask the questions nobody asks (Walters). "What is the biggest misconception about you?" Questions that make the subject stop and think.
+10. Return to what matters (Frost). When an answer dodges something important, note it, move on, circle back later from a different angle. Never badger. Circle.
+
+FOLLOW-UP TECHNIQUE
+- Drill into specifics: names, places, dates, ages, what things cost, what the room looked like.
+- Ask for the sensory layer: sounds, smells, weather, food.
+- Feeling, then fact: "What were you feeling in that moment?" then "And what actually happened?"
+- Callback earlier answers: "Earlier you said... Is that where that started?"
+- Narrow the vague: "Give me one example." "Which year was that?" "Who else was in the room?"
+- For any skill, venture, or achievement, ask how it actually worked.
+- Keep one deep question for the end of the session, when trust is highest. Ask it kindly and plainly, alone.
+
+SESSION FLOW
+Opening: warm and brief. Confirm where you are on the timeline and what this session covers. Start easy, with a low-stakes concrete question from the current chapter.
+Middle: follow the subject's energy inside the chapter. Cut in when an answer drifts, circle back when something is dodged.
+Chapter transitions: signal them clearly. "We have a good picture of those years. Ready to move to...?"
+Closing: when told the session is wrapping up, ask the session's one deep question, then thank them for a specific story they told, and preview the next session.
+
+BOUNDARIES
+- Never invent details. If something is unclear, it becomes an open thread, not a guess.
+- If the subject gets emotional, slow down. Acknowledge, stay quiet, let them decide whether to continue.
+- On contradictions, do not accuse. Present both versions and ask which memory feels truer.
+- Everything the subject says stays private.
+
+FORMAT: You are speaking out loud to one person in a quiet room. Reply in plain conversational prose, no lists, no headers, no markdown. Keep every reply short: an acknowledgment and one question, two or three sentences total, unless the subject asks you for something longer.`;
+
+const LS_KEY = 'lsi_state_v1';
+let state = {
+  settings:{provider:'openai', apiKey:'', model:'gpt-4o-mini', facModel:'gpt-4o-mini', voice:false},
+  subject:{name:'', type:'older'},
+  subjectFile:null,
+  chapter:'childhood',
+  chapterStatus:{},
+  session:null,
+  demoMode:false,
+  pastSessions:[]
+};
+function freshSubjectFile(name){
+  return {started:new Date().toISOString().slice(0,10), sessions:0, people:[], places:[], timeline:[], contradictions:[], openThreads:[], summaries:[]};
+}
+function saveState(){ localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function loadState(){ try{ const s=JSON.parse(localStorage.getItem(LS_KEY)); if(s) state=Object.assign(state,s);}catch(e){} }
+
+const $ = id=>document.getElementById(id);
+const chatEl=$('chat');
+function addMsg(role, text){
+  const div=document.createElement('div'); div.className='msg '+role;
+  const who = role==='ai' ? 'Interviewer' : role==='user' ? (state.subject.name||'You') : '';
+  div.innerHTML = (who?'<div class="who">'+who+'</div>':'')+'<div class="bubble"></div>';
+  div.querySelector('.bubble').textContent=text;
+  chatEl.appendChild(div); chatEl.scrollTop=chatEl.scrollHeight;
+  return div;
+}
+function addThinking(){ const d=addMsg('system','...'); d.classList.add('thinking'); return d; }
+function renderSidebar(){
+  const sf=state.subjectFile;
+  $('subjectMeta').innerHTML = '<b>'+esc(state.subject.name)+'</b><br>'+
+    (sf? ('Sessions completed: '+sf.sessions+'<br>People named: '+sf.people.length+'<br>Timeline anchors: '+sf.timeline.length) : '');
+  const cl=$('chapterList'); cl.innerHTML='';
+  CHAPTERS.forEach(c=>{
+    const st=state.chapterStatus[c.id]||'not started';
+    const div=document.createElement('div'); div.className='chapter'+(c.id===state.chapter?' active':'');
+    const dotCls = st==='complete'?'done':(st==='in progress'?'active':'');
+    div.innerHTML='<span class="dot '+dotCls+'"></span><span>'+c.name+'</span>';
+    cl.appendChild(div);
+  });
+  const tl=$('threadList'); tl.innerHTML='';
+  const threads=(state.subjectFile&&state.subjectFile.openThreads)||[];
+  if(!threads.length) tl.innerHTML='<div class="threadItem">None yet</div>';
+  threads.slice(-8).forEach(t=>{ const d=document.createElement('div'); d.className='threadItem'; d.textContent=t; tl.appendChild(d); });
+}
+function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+let timerInt=null;
+function startTimer(){ clearInterval(timerInt); const t0=Date.now();
+  timerInt=setInterval(()=>{ const m=Math.floor((Date.now()-t0)/60000); $('timer').textContent=m+' min'; },5000); $('timer').textContent='0 min'; }
+
+function subjectFileText(){
+  const sf=state.subjectFile; if(!sf) return 'No prior sessions. This is session 1.';
+  let out='SUBJECT FILE - '+state.subject.name+'\nStarted: '+sf.started+' | Sessions completed: '+sf.sessions+'\n';
+  out+='Chapter progress:\n'+CHAPTERS.map(c=>'- '+c.name+': '+(state.chapterStatus[c.id]||'not started')).join('\n')+'\n';
+  if(sf.people.length) out+='People registry:\n'+sf.people.map(p=>'- '+p).join('\n')+'\n';
+  if(sf.places.length) out+='Places registry:\n'+sf.places.map(p=>'- '+p).join('\n')+'\n';
+  if(sf.timeline.length) out+='Timeline anchors:\n'+sf.timeline.map(p=>'- '+p).join('\n')+'\n';
+  if(sf.contradictions.length) out+='Contradictions and unclear points (revisit gently, never accuse):\n'+sf.contradictions.map(p=>'- '+p).join('\n')+'\n';
+  if(sf.openThreads.length) out+='Open threads:\n'+sf.openThreads.map(p=>'- '+p).join('\n')+'\n';
+  if(sf.summaries.length) out+='Session recaps (one line each):\n'+sf.summaries.map((s,i)=>'Session '+(i+1)+': '+s).join('\n')+'\n';
+  return out;
+}
+function buildSystem(facBrief){
+  const chap=CHAPTERS.find(c=>c.id===state.chapter);
+  const typeNote = state.subject.type==='older'
+    ? 'The subject is an older person (a parent). Weight childhood, their own parents, migration, early hardship, and the years before their children existed.'
+    : 'The subject is mid-career. Weight ventures and inflection points; treat legacy as open questions, not a summing up.';
+  let s = INTERVIEWER_CORE+'\n\nCONTEXT\nThe subject is '+state.subject.name+'. '+typeNote+'\n'+
+    'This session covers the chapter: '+chap.name+'. Sessions are short (15 to 30 minutes).\n\n'+
+    'MEMORY FROM PRIOR SESSIONS\n'+subjectFileText()+'\n'+
+    'QUESTION SEEDS FOR THIS CHAPTER (hold lightly, never read as a list; follow the energy first)\n'+
+    QUESTION_BANK[state.chapter].map(q=>'- '+q).join('\n')+'\n'+
+    'Universal follow-ups: '+UNIVERSAL_FOLLOWUPS.join(' ')+'\n';
+  if(facBrief) s+='\nDIRECTION FROM YOUR FACILITATOR (the subject cannot see this; follow it naturally, in your own voice)\n'+facBrief+'\n';
+  return s;
+}
+const FACILITATOR_PROMPT = `You are the facilitator in a life-story interview. You never speak to the subject. You read the conversation against the chapter agenda and decide where the conversation should go next. Your posture: understanding rather than controlling, suggesting rather than directing. The subject can wander, jump ahead, or raise unplanned topics; the agenda survives anyway.
+
+After reading the recent exchange, output ONLY a JSON object:
+{"action":"stay"|"move"|"wrap", "chapter":"<chapter id>", "brief":"<one short paragraph of direction for the interviewer: what to chase, what to park, whether to open or transition chapters, or whether to begin the closing deep question>", "chapterDone":true|false}
+
+- "stay": keep mining the current chapter. "move": transition to the chapter named. "wrap": the session has run long or the energy is dropping; have the interviewer move toward its one deep closing question.
+- Chapters finish when they feel finished, not when questions are exhausted. Judge against whether the chapter has yielded one or two real stories with specifics.
+- If the subject raised something important off-spine, you may set brief to chase it and note it as a thread.`;
+
+async function callLLM(system, messages, opts){
+  opts=opts||{};
+  const {provider, apiKey}=state.settings;
+  const model = opts.model || state.settings.model;
+  if(!apiKey) throw new Error('no-key');
+  if(provider==='openai'){
+    const body={model, messages:[{role:'system',content:system}].concat(messages)};
+    if(opts.json) body.response_format={type:'json_object'};
+    const r=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKey}, body:JSON.stringify(body)});
+    if(!r.ok){ const e=await r.text(); throw new Error('OpenAI '+r.status+': '+e.slice(0,300)); }
+    const d=await r.json(); return d.choices[0].message.content;
+  } else {
+    const body={model, max_tokens:opts.maxTokens||600, system,
+      messages:messages.map(m=>({role:m.role==='assistant'?'assistant':'user', content:m.content}))};
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+      body:JSON.stringify(body)});
+    if(!r.ok){ const e=await r.text(); throw new Error('Anthropic '+r.status+': '+e.slice(0,300)); }
+    const d=await r.json(); return d.content.map(b=>b.text||'').join('');
+  }
+}
+
+async function runFacilitator(){
+  const recent=state.session.messages.slice(-8).map(m=>({role:m.role, content:m.text}));
+  const agenda='Agenda (chapter: status)\n'+CHAPTERS.map(c=>'- '+c.id+' ('+c.name+'): '+(state.chapterStatus[c.id]||'not started')+(c.id===state.chapter?'  <-- ACTIVE':'')).join('\n');
+  try{
+    const out=await callLLM(FACILITATOR_PROMPT+'\n\n'+agenda+'\n\nSession length so far: '+state.session.messages.length+' exchanges. Current chapter: '+state.chapter+'.', recent, {model:state.settings.facModel, json:true, maxTokens:250});
+    const j=JSON.parse(out);
+    if(j.action==='move' && j.chapter && CHAPTERS.some(c=>c.id===j.chapter)){
+      state.chapterStatus[state.chapter]='complete';
+      state.chapter=j.chapter; state.chapterStatus[j.chapter]='in progress';
+      const cname=CHAPTERS.find(c=>c.id===j.chapter).name;
+      addMsg('system','Moving to a new chapter: '+cname);
+    }
+    if(j.action==='wrap' && !state.session.wrapping){ state.session.wrapping=true; }
+    renderSidebar(); saveState();
+    return j.brief||'';
+  }catch(e){ console.warn('facilitator failed', e); return ''; }
+}
+
+const DEMO_SCRIPT=[
+"Welcome. I am really glad we are doing this. Here is how I work: no script, no rush. We will start at the beginning and see where the stories take us. So tell me, what was the house like where you grew up?",
+"Four of you in two rooms. Say more about that.",
+"Your father built the second room himself, with his own hands, over a whole winter. Where did he learn to do that?",
+"That sounds like it was hard on your mother, even if nobody said so at the time. What did she do to hold things together while he was out on the rigs?",
+"Radio Karachi on Sunday mornings, your father home, the whole house smelling of parathas. That is a scene. What did those Sundays feel like, compared to the rest of the week?",
+"Let me stop you there, because I want to go back to something. Earlier you said you were the one who translated letters for the family. How old were you when that started?",
+"We have a good picture of the Delhi years. Ready to move to what happened when your father decided to leave for England?",
+"One last question before we stop today. What did your parents never tell you about those years that you only found out later?",
+"Thank you. That story about the trunk, and your mother packing it in one afternoon, that is the kind of thing this whole project exists for. Next time we will pick up with the journey to England. I will write all of this up for the record tonight."];
+let demoIdx=0;
+
+let rec=null, recording=false, silenceTimer=null;
+function setupSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ $('micBtn').style.display='none'; return; }
+  rec=new SR(); rec.continuous=true; rec.interimResults=true; rec.lang='en-US';
+  rec.onresult=e=>{
+    let final='';
+    for(let i=e.resultIndex;i<e.results.length;i++){ if(e.results[i].isFinal) final+=e.results[i][0].transcript; }
+    if(final){ $('input').value=($('input').value+' '+final).trim(); autoGrow();
+      if(state.settings.voice){ clearTimeout(silenceTimer); silenceTimer=setTimeout(()=>{ if($('input').value.trim()) sendUser(); },1800); } }
+  };
+  rec.onend=()=>{ if(recording) try{rec.start();}catch(e){} };
+}
+function toggleMic(){
+  if(!rec) return;
+  recording=!recording;
+  $('micBtn').classList.toggle('recording',recording);
+  $('voiceHint').textContent = recording ? 'Listening... pause and it sends, or press send yourself.' : '';
+  if(recording){ try{rec.start();}catch(e){} } else { try{rec.stop();}catch(e){} }
+}
+function speak(text){
+  if(!state.settings.voice || !window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const clean=text.replace(/\[[^\]]*\]/g,'');
+  const u=new SpeechSynthesisUtterance(clean); u.rate=0.97; u.pitch=1.0;
+  const vs=speechSynthesis.getVoices();
+  const warm=vs.find(v=>/Google US English/i.test(v.name))||vs.find(v=>/Samantha|Aria|Jenny/i.test(v.name))||vs.find(v=>v.lang==='en-US');
+  if(warm) u.voice=warm;
+  speechSynthesis.speak(u);
+}
+
+function beginSession(){
+  state.session={startedAt:new Date().toISOString(), messages:[], wrapping:false};
+  state.chapterStatus[state.chapter]='in progress';
+  saveState(); renderSidebar(); startTimer();
+  $('chat').innerHTML=''; $('summaryCard').style.display='none';
+  const cname=CHAPTERS.find(c=>c.id===state.chapter).name;
+  if(state.demoMode){
+    addMsg('system','Session 1 - '+cname);
+    demoIdx=0;
+    setTimeout(()=>{ addMsg('ai',DEMO_SCRIPT[0]); state.session.messages.push({role:'assistant',text:DEMO_SCRIPT[0]}); },600);
+    return;
+  }
+  addMsg('system','Session 1 - '+cname);
+  interviewerTurn(true);
+}
+async function interviewerTurn(opening){
+  const thinking=addThinking();
+  try{
+    let brief='';
+    if(!opening) brief=await runFacilitator();
+    const sys=buildSystem(brief);
+    const msgs=state.session.messages.map(m=>({role:m.role, content:m.text}));
+    if(opening) msgs.push({role:'user',content:'[The subject just sat down. Open the session warmly and briefly, confirm what this session covers, and ask your first easy question.]'});
+    const reply=await callLLM(sys, msgs);
+    thinking.remove();
+    state.session.messages.push({role:'assistant', text:reply});
+    addMsg('ai', reply); speak(reply); saveState();
+  }catch(e){
+    thinking.remove();
+    if(e.message==='no-key') addMsg('system','No API key set. Open Settings to add one, or restart in demo mode.');
+    else addMsg('system','Error: '+e.message.slice(0,200));
+  }
+}
+async function sendUser(){
+  const v=$('input').value.trim(); if(!v) return;
+  $('input').value=''; autoGrow();
+  addMsg('user', v);
+  state.session.messages.push({role:'user', text:v});
+  saveState();
+  if(state.demoMode){
+    const thinking=addThinking();
+    setTimeout(()=>{ thinking.remove();
+      demoIdx=Math.min(demoIdx+1, DEMO_SCRIPT.length-1);
+      const r=DEMO_SCRIPT[demoIdx]; state.session.messages.push({role:'assistant',text:r});
+      addMsg('ai', r);
+    }, 700);
+    return;
+  }
+  interviewerTurn(false);
+}
+
+async function endSession(){
+  if(!state.session || !state.session.messages.length){ return; }
+  if(state.demoMode){ showDemoSummary(); return; }
+  addMsg('system','Writing up the session...');
+  const transcript=state.session.messages.map(m=>(m.role==='assistant'?'Interviewer: ':'Subject: ')+m.text).join('\n');
+  const prompt=`The session just ended. Produce the end-of-session record as ONLY a JSON object with these fields:
+{"prose_summary":"<chronological third-person biographical prose of this session, preserving every name, date, place, direct quote. No editorializing.>",
+"recap":"<one line recap of the session for the subject file>",
+"open_threads":["<unanswered questions, half-told stories, names to chase>"],
+"people":["<Name - who they are>"],"places":["<Place - what happened there>"],"timeline":["<Year or date - event>"],
+"contradictions":["<anything that conflicts with the subject file, gently phrased>"],
+"chapter_status":{"<chapter id>":"not started|in progress|complete"}}
+Update the subject file fields based ONLY on what was actually said. Never invent details.`;
+  try{
+    const out=await callLLM(prompt+'\n\nCURRENT SUBJECT FILE\n'+subjectFileText()+'\n\nTRANSCRIPT\n'+transcript, [{role:'user',content:'Produce the session record now.'}], {json:true, maxTokens:2000});
+    applySummary(JSON.parse(out));
+  }catch(e){ addMsg('system','Summary failed: '+e.message.slice(0,200)); }
+}
+function applySummary(j){
+  const sf=state.subjectFile;
+  sf.sessions+=1;
+  if(j.recap) sf.summaries.push(j.recap);
+  const keymap={open_threads:'openThreads', people:'people', places:'places', timeline:'timeline', contradictions:'contradictions'};
+  Object.keys(keymap).forEach(k=>{
+    const key=keymap[k];
+    (j[k]||[]).forEach(x=>{ if(!sf[key].includes(x)) sf[key].push(x); });
+  });
+  if(j.chapter_status) Object.assign(state.chapterStatus, j.chapter_status);
+  saveState(); renderSidebar();
+  const sc=$('summaryCard');
+  sc.style.display='block';
+  sc.innerHTML='<h3>Session '+sf.sessions+' written up</h3>'+
+    '<div class="lbl">Prose summary (appended to the running biography)</div><div class="sec">'+esc(j.prose_summary||'')+'</div>'+
+    '<div class="lbl">Open threads for next time</div><div class="sec">'+esc((j.open_threads||[]).map(t=>'- '+t).join('\n')||'None')+'</div>'+
+    '<div class="lbl">Subject file updated</div><div class="sec">People: '+sf.people.length+' | Places: '+sf.places.length+' | Timeline anchors: '+sf.timeline.length+'</div>';
+  chatEl.appendChild(sc); chatEl.scrollTop=chatEl.scrollHeight;
+  addMsg('system','Session saved. The next session will remember all of this.');
+  state.pastSessions.push({date:state.session.startedAt, transcript:state.session.messages});
+  state.session=null; clearInterval(timerInt); saveState();
+}
+function showDemoSummary(){
+  const j={prose_summary:"(Demo) The subject grew up in Delhi in a two-room house shared by four people; his father built the second room himself over one winter. His mother held the household together while his father worked away on the rigs. Sundays meant Radio Karachi and parathas with his father home. As a boy he translated the family's letters. The chapter closed on the decision to leave for England, his mother packing their trunk in a single afternoon.",
+    recap:"Childhood in Delhi: two-room house, father on the rigs, Sundays with Radio Karachi; ended on the decision to leave for England.",
+    open_threads:["When did he start translating letters for the family, and for whom exactly?","The journey to England: who decided, who paid, what did the trunk hold?"],
+    people:["Father - worked on the rigs, built the second room himself","Mother - held the household together, packed the trunk in one afternoon"],
+    places:["Delhi - childhood home, two rooms for four people"],
+    timeline:[],
+    contradictions:[]};
+  applySummary(j);
+}
+
+function exportAll(){
+  let md='# Life Story Interview - '+state.subject.name+'\n\n## Subject file\n```\n'+subjectFileText()+'\n```\n\n';
+  const sessions=state.pastSessions.slice();
+  if(state.session) sessions.push({date:state.session.startedAt, transcript:state.session.messages});
+  sessions.forEach((s,i)=>{
+    md+='## Session '+(i+1)+' ('+s.date.slice(0,10)+')\n\n';
+    s.transcript.forEach(m=>{ md+='**'+(m.role==='assistant'?'Interviewer':'Subject')+':** '+m.text+'\n\n'; });
+  });
+  const blob=new Blob([md],{type:'text/markdown'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='life-story-'+(state.subject.name||'subject').replace(/\W+/g,'-')+'.md'; a.click();
+}
+
+function autoGrow(){ const t=$('input'); t.style.height='auto'; t.style.height=Math.min(t.scrollHeight,120)+'px'; }
+$('input').addEventListener('input',autoGrow);
+$('input').addEventListener('keydown',e=>{ if(e.key==='Enter'&&!e.shiftKey){ e.preventDefault(); sendUser(); } });
+$('sendBtn').addEventListener('click',sendUser);
+$('micBtn').addEventListener('click',toggleMic);
+$('endBtn').addEventListener('click',endSession);
+$('exportBtn').addEventListener('click',exportAll);
+$('sidebarToggle').addEventListener('click',()=>$('sidebar').classList.toggle('open'));
+$('settingsBtn').addEventListener('click',()=>{
+  $('setProvider').value=state.settings.provider; $('setKey').value=state.settings.apiKey;
+  $('setModel').value=state.settings.model; $('setFacModel').value=state.settings.facModel;
+  $('setVoice').checked=state.settings.voice;
+  $('settingsOverlay').style.display='flex';
+});
+$('setProvider').addEventListener('change',e=>{
+  const a=e.target.value==='anthropic';
+  $('setModel').value=a?'claude-haiku-4-5-20251001':'gpt-4o-mini';
+  $('setFacModel').value=a?'claude-haiku-4-5-20251001':'gpt-4o-mini';
+});
+$('saveSettingsBtn').addEventListener('click',()=>{
+  state.settings.provider=$('setProvider').value; state.settings.apiKey=$('setKey').value.trim();
+  state.settings.model=$('setModel').value.trim(); state.settings.facModel=$('setFacModel').value.trim();
+  state.settings.voice=$('setVoice').checked;
+  state.demoMode=!state.settings.apiKey;
+  $('demoBanner').style.display=state.demoMode?'block':'none';
+  saveState(); $('settingsOverlay').style.display='none';
+});
+$('closeSettingsBtn').addEventListener('click',()=>$('settingsOverlay').style.display='none');
+$('resetBtn').addEventListener('click',()=>{ localStorage.removeItem(LS_KEY); location.reload(); });
+
+CHAPTERS.forEach(c=>{ const o=document.createElement('option'); o.value=c.id; o.textContent=c.name; $('setupChapter').appendChild(o); });
+$('startBtn').addEventListener('click',()=>{
+  state.subject.name=$('setupName').value.trim()||'the subject';
+  state.subject.type=$('setupType').value;
+  state.chapter=$('setupChapter').value;
+  state.settings.apiKey=$('setupKey').value.trim();
+  state.demoMode=!state.settings.apiKey;
+  state.subjectFile=state.subjectFile||freshSubjectFile(state.subject.name);
+  $('demoBanner').style.display=state.demoMode?'block':'none';
+  $('setupOverlay').style.display='none';
+  $('headerSub').textContent=state.subject.name+' - '+CHAPTERS.find(c=>c.id===state.chapter).name;
+  saveState(); beginSession();
+});
+$('demoBtn').addEventListener('click',()=>{
+  $('setupKey').value='';
+  state.subject.name=$('setupName').value.trim()||'the subject';
+  state.subject.type=$('setupType').value;
+  state.chapter=$('setupChapter').value;
+  state.demoMode=true; state.subjectFile=state.subjectFile||freshSubjectFile(state.subject.name);
+  $('demoBanner').style.display='block';
+  $('setupOverlay').style.display='none';
+  $('headerSub').textContent=state.subject.name+' - '+CHAPTERS.find(c=>c.id===state.chapter).name;
+  saveState(); beginSession();
+});
+
+loadState(); setupSpeech();
+if(state.session || state.subjectFile){
+  $('setupOverlay').style.display='none';
+  $('headerSub').textContent=state.subject.name+' - '+CHAPTERS.find(c=>c.id===state.chapter).name;
+  $('demoBanner').style.display=state.demoMode?'block':'none';
+  if(state.session){ (state.session.messages||[]).forEach(m=>addMsg(m.role==='assistant'?'ai':m.role, m.text)); startTimer(); }
+  else beginSession();
+  renderSidebar();
+}
+</script>
+</body>
+</html>
